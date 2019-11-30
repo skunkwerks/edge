@@ -23,8 +23,16 @@ defmodule Bytesize do
     quote do: 152
   end
 
+  defmacro bytes(21) do
+    quote do: 168
+  end
+
   defmacro bytes(32) do
     quote do: 128
+  end
+
+  defmacro bytes(63) do
+    quote do: 504
   end
 
   # defmacro bytes(n \\ 1) when is_integer(n) and n > 0 do
