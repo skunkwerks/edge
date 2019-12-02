@@ -1,4 +1,8 @@
 defmodule Edge.Worker do
+  # raw socket parameters that request the kernel to sign and tag
+  # packets on this TCP connection
+  @tcp_md5sig {:raw, 6, 16, <<1::32>>}
+
   use Connection
 
   def start_link(%BGP4.Peer{} = peer) do
@@ -10,7 +14,7 @@ defmodule Edge.Worker do
     s = %{
       host: peer.ip,
       port: peer.port,
-      opts: peer.tcp_options,
+      opts: [:binary, {:active, false}, @tcp_md5sig],
       timeout: peer.timeout,
       sock: nil
     }
@@ -31,7 +35,7 @@ defmodule Edge.Worker do
         _,
         %{sock: nil, host: host, port: port, opts: opts, timeout: timeout} = s
       ) do
-    case :gen_tcp.connect(host, port, [active: false] ++ opts, timeout) do
+    case :gen_tcp.connect(host, port, opts, timeout) do
       {:ok, sock} ->
         {:ok, %{s | sock: sock}}
 

@@ -29,10 +29,15 @@ defmodule BGP4.Protocol do
 
   # sample AS taken from private AS range
   # 0xfde8
-  @as_local <<65000::bytes(2)>>
+  @local_as <<65000::bytes(2)>>
   # 0xfe00
-  @upstream <<65024::bytes(2)>>
+  @upstream_as <<65530::bytes(2)>>
   @local_ip <<0x0A634783::bytes(4)>>
+
+  # some protocol frames have no variable components
+  def keepalive(), do: generate(:bgp_keepalive)
+  def shutdown(), do: generate(:bgp_shutdown)
+  def open(as, hold_time, ip, options), do: generate(:bgp_open, as, hold_time, ip, options)
 
   @doc """
   Validate and strip off standard preamble and length
@@ -41,28 +46,121 @@ defmodule BGP4.Protocol do
       when length == byte_size(msg),
       do: parse(rest)
 
-  def parse(@msg_open <> rest = msg), do: {:bgp_open, @empty}
-
   def parse(@msg_keepalive = msg), do: {:bgp_keepalive, @empty}
 
   def parse(@msg_notification <> @cease_admin_shutdown = msg), do: {:bgp_shutdown, @empty}
 
   @doc """
-  Prepend BGP preamble , then total packet length, and tack on the message
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+
+  |    Version    |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |     My Autonomous System      |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |           Hold Time           |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                         BGP Identifier                        |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  | Opt Parm Len  |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                                                               |
+  |             Optional Parameters (variable)                    |
+  |                (possibly zero length)                         |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   """
-  def generate(msg) when is_binary(msg) do
+  def parse(
+        @msg_open <>
+          @bgp_version <>
+          <<as::bytes(2), hold_time::bytes(2), ip::bytes(4), length::byte()>> <>
+          options = msg
+      )
+      when length == byte_size(options) do
+    IO.inspect(as)
+    IO.inspect(hold_time)
+    IO.inspect(ip)
+    IO.inspect(length)
+    IO.inspect(options)
+    {:bgp_open, @empty}
+  end
+
+  @doc """
+  Prepend BGP preamble , then total packet length, and tack on the message
+
+  4.1.  Message Header Format
+
+   Each message has a fixed-size header.  There may or may not be a data
+   portion following the header, depending on the message type.  The
+   layout of these fields is shown below:
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                                                               |
+      +                                                               +
+      |                                                               |
+      +                                                               +
+      |                           Marker                              |
+      +                                                               +
+      |                                                               |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |          Length               |      Type     |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+      Marker:
+
+         This 16-octet field is included for compatibility; it MUST be
+         set to all ones.
+
+      Length:
+
+         This 2-octet unsigned integer indicates the total length of the
+         message, including the header in octets.  Thus, it allows one
+         to locate the (Marker field of the) next message in the TCP
+         stream.  The value of the Length field MUST always be at least
+         19 and no greater than 4096, and MAY be further constrained,
+         depending on the message type.  "padding" of extra data after
+         the message is not allowed.  Therefore, the Length field MUST
+         have the smallest value required, given the rest of the
+         message.
+
+      Type:
+
+         This 1-octet unsigned integer indicates the type code of the
+         message.  This document defines the following type codes:
+
+                              1 - OPEN
+                              2 - UPDATE
+                              3 - NOTIFICATION
+                              4 - KEEPALIVE
+
+         [RFC2918] defines one more type code.
+  """
+  def wrap(msg) when is_binary(msg) do
     # add 2 bytes for length of final frame incl length
     length = byte_size(msg) + byte_size(@bgp_marker) + 2
     @bgp_marker <> <<length::bytes(2)>> <> msg
   end
 
   def generate(:bgp_keepalive) do
-    @msg_keepalive |> generate()
+    @msg_keepalive |> wrap()
   end
 
   def generate(:bgp_shutdown) do
     (@msg_notification <> @cease_admin_shutdown)
-    |> generate()
+    |> wrap()
+  end
+
+  # @open <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_003F_0104_FFFA_005A_934B_2440_2202_0601_0400_0100_0102_0280_0002_0202_0002_0440_0240_7802_0641_0400_00FF_FA02_0247_00::bytes(
+  #           63
+  # )>>
+
+  def generate(:bgp_open, as, ip, hold_time, options) do
+    (@msg_open <>
+       @bgp_version <>
+       <<as::bytes(2), hold_time::bytes(2), ip::bytes(4)>> <>
+       options)
+    |> wrap()
   end
 
   # helpers

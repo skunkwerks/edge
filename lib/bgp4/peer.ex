@@ -10,7 +10,6 @@ defmodule BGP4.Peer do
     # upstream router
     :ip,
     :ip6,
-    :tcp_options,
     port: 1179,
     timeout: 5000
   ]
