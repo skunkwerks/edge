@@ -19,6 +19,10 @@ defmodule Bytesize do
     quote do: 64
   end
 
+  defmacro bytes(16) do
+    quote do: 128
+  end
+
   defmacro bytes(19) do
     quote do: 152
   end
@@ -28,7 +32,11 @@ defmodule Bytesize do
   end
 
   defmacro bytes(32) do
-    quote do: 128
+    quote do: 256
+  end
+
+  defmacro bytes(48) do
+    quote do: 384
   end
 
   defmacro bytes(63) do

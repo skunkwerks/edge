@@ -9,35 +9,42 @@ defmodule BGP4.Protocol do
 
   @empty <<>>
   # immutable tags and options in typical packet order
-  @bgp_marker <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF::bytes(32)>>
+  @bgp_marker <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF::bytes(16)>>
   # packet_length                     << ... :: byte() >>
   @bgp_version <<0x04::byte()>>
   @msg_open <<0x01::byte()>>
+  @msg_update <<0x02::byte()>>
   @msg_notification <<0x03::byte()>>
   @msg_keepalive <<0x04::byte()>>
   @bgp_hold_time <<0x00F0::bytes(2)>>
-  # notifications
+  # # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
-  # optional capabilities
-  @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
-  #  followed by AS
-  @cap_4_octet_asn <<0x4104::bytes(2)>>
-  @cap_graceful_restart <<0x4006_0000_0001_0100::bytes(8)>>
-  @cap_no_route_refresh <<0x0200::bytes(2)>>
-  @cap_no_enhanced_route_refresh <<0x4600::bytes(2)>>
-  @cap_no_longlived_graceful_restart <<0x4700::bytes(2)>>
+  # # optional capabilities
+  # @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
+  # #  followed by AS
+  # @cap_4_octet_asn <<0x4104::bytes(2)>>
+  # @cap_graceful_restart <<0x4006_0000_0001_0100::bytes(8)>>
+  # @cap_no_route_refresh <<0x0200::bytes(2)>>
+  # @cap_no_enhanced_route_refresh <<0x4600::bytes(2)>>
+  # @cap_no_longlived_graceful_restart <<0x4700::bytes(2)>>
 
-  # sample AS taken from private AS range
-  # 0xfde8
-  @local_as <<65000::bytes(2)>>
-  # 0xfe00
-  @upstream_as <<65530::bytes(2)>>
-  @local_ip <<0x0A634783::bytes(4)>>
+  # # sample AS taken from private AS range
+  # # 0xfde8
+  # @local_as <<65000::bytes(2)>>
+  # # 0xfe00
+  # @upstream_as <<65530::bytes(2)>>
+  # @local_ip <<0x0A634783::bytes(4)>>
 
   # some protocol frames have no variable components
-  def keepalive(), do: generate(:bgp_keepalive)
-  def shutdown(), do: generate(:bgp_shutdown)
-  def open(as, hold_time, ip, options), do: generate(:bgp_open, as, hold_time, ip, options)
+  # while others need more love and attendion
+  def frame_open(as, hold_time, ip, options), do: generate(:bgp_open, as, hold_time, ip, options)
+
+  def frame_update(as, hold_time, ip, options),
+    do: generate(:bgp_open, as, hold_time, ip, options)
+
+  def frame_notification(), do: generate(:bgp_notification)
+  def frame_keepalive(), do: generate(:bgp_keepalive)
+  # def frame_shutdown(), do: generate(:bgp_shutdown)
 
   @doc """
   Validate and strip off standard preamble and length
@@ -72,17 +79,24 @@ defmodule BGP4.Protocol do
   def parse(
         @msg_open <>
           @bgp_version <>
-          <<as::bytes(2), hold_time::bytes(2), ip::bytes(4), length::byte()>> <>
+          <<as::bytes(2), hold_time::bytes(2), id::bytes(4), length::byte()>> <>
           options = msg
       )
       when length == byte_size(options) do
-    IO.inspect(as)
-    IO.inspect(hold_time)
-    IO.inspect(ip)
-    IO.inspect(length)
-    IO.inspect(options)
-    {:bgp_open, @empty}
+    options = parse_rfc3392_options(options)
+    {:bgp_open, %{as: as, hold_time: hold_time, id: id, options: options}}
   end
+
+  @doc """
+  TODO stubbed update message handling
+  """
+  def parse(@msg_update <> rest = msg), do: {:bgp_update, @empty}
+
+  @doc """
+  TODO stubbed RFC 3392 option handling
+  """
+  def parse_rfc3392_options(<<>>), do: {}
+  def parse_rfc3392_options(_), do: {}
 
   @doc """
   Prepend BGP preamble , then total packet length, and tack on the message
@@ -150,10 +164,6 @@ defmodule BGP4.Protocol do
     (@msg_notification <> @cease_admin_shutdown)
     |> wrap()
   end
-
-  # @open <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_003F_0104_FFFA_005A_934B_2440_2202_0601_0400_0100_0102_0280_0002_0202_0002_0440_0240_7802_0641_0400_00FF_FA02_0247_00::bytes(
-  #           63
-  # )>>
 
   def generate(:bgp_open, as, ip, hold_time, options) do
     (@msg_open <>

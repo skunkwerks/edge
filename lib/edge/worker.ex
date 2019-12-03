@@ -1,4 +1,40 @@
 defmodule Edge.Worker do
+  @moduledoc """
+  our_IP: 10.80.69.129
+  our_AS: 65000
+  upstream_IP: 10.80.69.128
+  upstream_AS 65530
+  md5sig a484f00025d917AE11ac
+
+  filter packet_bgp {
+    # the IP range(s) to announce via BGP from this machine
+    # if net = 10.0.0.0/27 then accept;
+  }
+
+  router id 10.80.69.129; # this server's IP address
+
+  protocol direct {
+    interface "lo"; # restrict network interfaces it works with
+  }
+
+  protocol kernel {
+    persist; # don't remove routes on bird shutdown
+    scan time 10; # scan kernel routing table every 10 seconds
+    import all; # default is import all
+    export all; # default is export none
+  }
+
+  protocol device {
+    scan time 10; # scan interfaces every 10 seconds
+  }
+
+  protocol bgp {
+    export filter packet_bgp;
+    local as 65000;
+    neighbor 10.80.69.128 as 65530;
+    password "a484f00025d917AE11ac";
+  }
+  """
   # raw socket parameters that request the kernel to sign and tag
   # packets on this TCP connection
   @tcp_md5sig {:raw, 6, 16, <<1::32>>}
