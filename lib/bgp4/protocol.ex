@@ -27,6 +27,7 @@ defmodule BGP4.Protocol do
   @bgp_hold_time <<0x00F0::bytes(2)>>
   # # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
+  @hold_timers_expired <<0x0400::bytes(2)>>
   # # optional capabilities
   # @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
   # #  followed by AS
@@ -140,7 +141,8 @@ defmodule BGP4.Protocol do
   # a single byte is all that remains
   def parse_msg(@msg_keepalive), do: {:bgp_keepalive, nil}
 
-  def parse_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, nil}
+  def parse_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, :cease}
+  def parse_msg(@msg_notification <> @hold_timers_expired), do: {:bgp_shutdown, :expired}
 
   @doc """
   0                   1                   2                   3
