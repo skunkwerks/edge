@@ -24,7 +24,7 @@ defmodule BGP4.Protocol do
   @msg_update <<0x02::byte()>>
   @msg_notification <<0x03::byte()>>
   @msg_keepalive <<0x04::byte()>>
-  @bgp_hold_time <<0x00F0::bytes(2)>>
+  @bgp_hold_time <<0x005A::bytes(2)>>
   # # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
   @hold_timers_expired <<0x0400::bytes(2)>>
