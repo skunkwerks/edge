@@ -1,5 +1,4 @@
 defmodule BGP4.Fixtures do
-  import BGP4.Protocol
   import Bytesize
 
   # message fragments
