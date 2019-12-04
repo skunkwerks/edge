@@ -22,3 +22,5 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 edge-*.tar
 
+# ignore any routing configs from other systems
+*.conf
