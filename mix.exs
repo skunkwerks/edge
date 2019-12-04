@@ -22,7 +22,8 @@ defmodule Edge.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:connection, "~> 1.0"}
+      {:connection, "~> 1.0"},
+      {:fsm, "~> 0.3"}
     ]
   end
 end
