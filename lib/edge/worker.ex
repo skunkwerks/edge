@@ -39,7 +39,16 @@ defmodule Edge.Worker do
   # packets on this TCP connection
   @tcp_md5sig {:raw, 6, 16, <<1::32>>}
 
+  alias BGP4.Protocol, as: BGP
+
   use Connection
+
+  def start() do
+    %BGP4.Peer{ip: {10, 80, 69, 128}, port: 179, timeout: 90}
+    |> start_link()
+  end
+
+  def open(), do: BGP.frame_open(BGP.local_as(), BGP.hold_time(), BGP.local_ip(), <<0>>)
 
   def start_link(%BGP4.Peer{} = peer) do
     Connection.start_link(__MODULE__, peer)
