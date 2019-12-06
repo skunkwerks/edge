@@ -8,15 +8,11 @@ defmodule Edge.Worker do
   use Connection
 
   # raw socket parameters that request the kernel to sign and tag
-  # packets on this TCP connection
+  # packets on this TCP connection. May need to be revisited to
+  # work on different platforms and architectures.
   @tcp_md5sig {:raw, 6, 16, <<1::32>>}
 
-  def start() do
-    %BGP4.Peer{ip: {10, 80, 69, 128}, port: 179, timeout: 90}
-    |> start_link()
-  end
-
-  def open(), do: BGP.frame_open(local_as(), hold_time(), local_ip(), cap_no_options())
+  # generate(:bgp_open, as, hold_time, ip, options)
 
   def start_link(%BGP4.Peer{} = peer) do
     Connection.start_link(__MODULE__, peer)

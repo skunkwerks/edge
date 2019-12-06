@@ -3,16 +3,25 @@ defmodule Edge do
   Documentation for Edge.
   """
 
+  # some defaults
+  @ip "10.80.69.128"
+  @port 179
+  @timeout 90_000
   @doc """
-  Hello world.
+  Start a BGP4 peer
 
   ## Examples
 
-      iex> Edge.hello()
-      :world
+      iex> Edge.start(@ip)
 
   """
-  def hello do
-    :world
+  def start(ip \\ @ip, port \\ @port, timeout \\ @timeout) do
+    {:ok, ip} =
+      ip
+      |> String.to_charlist()
+      |> :inet.parse_ipv4strict_address()
+
+    %BGP4.Peer{ip: ip, port: port, timeout: timeout}
+    |> start_link()
   end
 end
