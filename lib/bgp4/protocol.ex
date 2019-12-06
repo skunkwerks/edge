@@ -29,7 +29,7 @@ defmodule BGP4.Protocol do
   @cease_admin_shutdown <<0x0602::bytes(2)>>
   @hold_timers_expired <<0x0400::bytes(2)>>
   # # optional capabilities
-  @cap_no_options << 0x00 >>
+  @cap_none <<0x00>>
   # @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
   # #  followed by AS
   # @cap_4_octet_asn <<0x4104::bytes(2)>>
@@ -40,6 +40,7 @@ defmodule BGP4.Protocol do
 
   def preamble(), do: @preamble
   def hold_time(), do: @bgp_hold_time
+  def cap_none(), do: @cap_none
   # sample AS taken from private AS range
   # 10.80.69.129 aka z01
   def local_ip(), do: <<10, 80, 69, 129>>
@@ -50,7 +51,6 @@ defmodule BGP4.Protocol do
   def upstream_ip(), do: <<10, 80, 69, 128>>
   # some protocol frames have no variable components
   # while others need more love and attendion
-  def frame_open(as, hold_time, ip, options), do: generate(:bgp_open, as, hold_time, ip, options)
 
   # def frame_update(as, hold_time, ip, options),
   #   do: generate(:bgp_open, as, hold_time, ip, options)
