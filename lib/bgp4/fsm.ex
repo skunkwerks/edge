@@ -59,17 +59,18 @@ defmodule BGP4.FSM do
       # no messages received within expected timeframe
       # send a keepalive, which could be followed by either a shutdown
       # or dropped connection on the next iteration
-      next_state(established)
+      next_state(:established)
     end
 
     defevent update do
       # triggered from our own Application
       # announce a given route
+      next_state(:established)
     end
 
     defevent receive do
       # got a recv, validate it and reply with keepalive
-      next_state(established)
+      next_state(:established)
     end
   end
 end
