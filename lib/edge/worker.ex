@@ -1,11 +1,14 @@
 defmodule Edge.Worker do
   @moduledoc """
   TCP-based worker that interacts with a BGP4 Peer to maintain an agreed
-  list of routes. IPv4 only and no kernel RIB changes yet.
+  list of routes. Currently supports only IPv4 and does not update
+  kernel routing information base - yet.
   """
 
   import BGP4.Protocol
   use Connection
+
+  @backoff_delay 5000
 
   # raw socket parameters that request the kernel to sign and tag
   # packets on this TCP connection. May need to be revisited to
@@ -49,7 +52,7 @@ defmodule Edge.Worker do
         {:ok, %{s | sock: sock}}
 
       {:error, _} ->
-        {:backoff, 1000, s}
+        {:backoff, @backoff_delay, s}
     end
   end
 
