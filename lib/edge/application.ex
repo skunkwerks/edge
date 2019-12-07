@@ -1,18 +1,24 @@
 defmodule Edge.Application do
   @moduledoc false
-  @port 1179
 
   use Application
 
   def start(_type, _args) do
-    ip =
-      "127.0.0.1"
+    {:ok, ip} =
+      (System.get_env("PEER") || "127.0.0.1")
       |> String.to_charlist()
       |> :inet.parse_address()
-      |> elem(1)
+
+    port =
+      (System.get_env("PORT") || "179")
+      |> String.to_integer()
+
+    timeout =
+      (System.get_env("HOLD") || "90000")
+      |> String.to_integer()
 
     children = [
-      {Edge.Worker, %BGP4.Peer{ip: ip, port: @port}}
+      {Edge.Worker, %BGP4.Peer{ip: ip, port: port, timeout: timeout}}
     ]
 
     opts = [strategy: :one_for_one, name: Edge.Supervisor]

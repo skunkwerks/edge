@@ -10,7 +10,7 @@ defmodule BGP4.Peer do
     :ip,
     :ip6,
     :state,
-    :port,
-    :timeout
+    port: 179,
+    timeout: 90_000
   ]
 end

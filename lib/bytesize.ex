@@ -11,12 +11,24 @@ defmodule Bytesize do
     quote do: 32
   end
 
+  defmacro bytes(5) do
+    quote do: 40
+  end
+
   defmacro bytes(6) do
     quote do: 48
   end
 
+  defmacro bytes(7) do
+    quote do: 56
+  end
+
   defmacro bytes(8) do
     quote do: 64
+  end
+
+  defmacro bytes(9) do
+    quote do: 72
   end
 
   defmacro bytes(16) do

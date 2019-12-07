@@ -20,7 +20,6 @@ defmodule BGP4.Protocol do
   # packet_length                     << ... :: byte() >>
   @bgp_version <<0x04::byte()>>
   @msg_open <<0x01::byte()>>
-  # @msg_open_empty_options <<0x00>>
   @msg_update <<0x02::byte()>>
   @msg_notification <<0x03::byte()>>
   @msg_keepalive <<0x04::byte()>>
@@ -49,15 +48,6 @@ defmodule BGP4.Protocol do
   # 0xfde8
   def upstream_as(), do: <<65530::bytes(2)>>
   def upstream_ip(), do: <<10, 80, 69, 128>>
-  # some protocol frames have no variable components
-  # while others need more love and attendion
-
-  # def frame_update(as, hold_time, ip, options),
-  #   do: generate(:bgp_open, as, hold_time, ip, options)
-
-  # def frame_notification(), do: generate(:bgp_notification)
-  # def frame_keepalive(), do: generate(:bgp_keepalive)
-  # def frame_shutdown(), do: generate(:bgp_shutdown)
 
   @doc """
   Validate and strip off standard preamble and length, leaving any extra for
@@ -116,12 +106,12 @@ defmodule BGP4.Protocol do
 
   [RFC2918] defines one more type code.
   """
-  # accumulate until all data are parsed or we crash the caller
-  def parse(packet), do: parse(packet, []) |> Enum.reverse()
-  # default case, data is parsed successfully, we are done
-  def parse(<<>>, acc), do: acc
-  # use length marker to split and parse recursively
-  def parse(
+  # accumulate until all data are unpacked or we crash the caller
+  def unpack(packet), do: unpack(packet, []) |> Enum.reverse()
+  # default case, data is unpacked successfully, we are done
+  def unpack(<<>>, acc), do: acc
+  # use length marker to split and unpack recursively
+  def unpack(
         @preamble <>
           <<total_message_size::bytes(2), tail::binary>>,
         acc
@@ -130,20 +120,20 @@ defmodule BGP4.Protocol do
     # 8*(total_message_bytes - len(preamble))
     length = total_message_size - @preamble_and_length_size
     <<msg::bytes-size(length), next::binary>> = tail
-    parsed_message = parse_msg(msg)
+    parsed_message = unpack_msg(msg)
     acc = [parsed_message | acc]
 
     case next do
       "" -> acc
-      _ -> parse(next, acc)
+      _ -> unpack(next, acc)
     end
   end
 
   # a single byte is all that remains
-  def parse_msg(@msg_keepalive), do: {:bgp_keepalive, nil}
+  def unpack_msg(@msg_keepalive), do: {:bgp_keepalive, nil}
 
-  def parse_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, :cease}
-  def parse_msg(@msg_notification <> @hold_timers_expired), do: {:bgp_shutdown, :expired}
+  def unpack_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, :cease}
+  def unpack_msg(@msg_notification <> @hold_timers_expired), do: {:bgp_shutdown, :expired}
 
   @doc """
   0                   1                   2                   3
@@ -164,31 +154,32 @@ defmodule BGP4.Protocol do
   |                (possibly zero length)                         |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   """
-  def parse_msg(
+  def unpack_msg(
         @msg_open <>
           @bgp_version <>
           <<as::bytes(2), hold_time::bytes(2), id::bytes(4), length::byte()>> <>
           options
       )
       when length == byte_size(options) do
-    options = parse_rfc3392_options(options)
+    options = unpack_rfc3392_options(options)
     {:bgp_open, %{as: as, hold_time: hold_time, id: id, options: options}}
   end
 
   @doc """
   TODO stubbed update message handling
   """
-  def parse_msg(@msg_update <> _TODO), do: {:bgp_update, nil}
+  def unpack_msg(@msg_update <> _TODO), do: {:bgp_update, nil}
 
   @doc """
   TODO stubbed RFC 3392 option handling
   """
-  def parse_rfc3392_options(<<>>), do: nil
-  def parse_rfc3392_options(_), do: nil
+  def unpack_rfc3392_options(<<>>), do: nil
+  def unpack_rfc3392_options(_), do: nil
 
   @doc """
-  Generate valid BGP4 messages
-  Prepend BGP preamble , then total packet length, and tack on the message
+  Generate valid BGP4 messages from internal binary format by prepending
+  BGP preamble , calculated total packet length, & finally tack on the
+  provided message.
 
   4.1.  Message Header Format
 
@@ -245,16 +236,16 @@ defmodule BGP4.Protocol do
     @preamble <> <<length::bytes(2)>> <> msg
   end
 
-  def generate(:bgp_keepalive) do
+  def pack_keepalive() do
     @msg_keepalive |> wrap()
   end
 
-  def generate(:bgp_shutdown) do
+  def pack_notification_shutdown() do
     (@msg_notification <> @cease_admin_shutdown)
     |> wrap()
   end
 
-  def generate(:bgp_open, as, ip, hold_time, options) do
+  def pack_open(as, ip, hold_time, options \\ @bgp_hold_time) do
     (@msg_open <>
        @bgp_version <>
        as <>
@@ -264,6 +255,94 @@ defmodule BGP4.Protocol do
     |> wrap()
   end
 
+  ################################################################################
+  # update is tricky
+
+  @doc """
+  Withdrawn routes are packed into a length, followed by possibly empty
+  routes to be withdrawn from the peer's RIB.
+  """
+  def pack_withdrawn_routes([]), do: <<0x0000::bytes(2)>>
+  # TODO pack more than zero routes here
+  def pack_withdrawn_routes(_), do: :unsupported
+
+  @doc """
+  Path attributes we do not know what these are just yet
+  """
+  @path_flags <<0x40>>
+  @path_type_origin <<0x01>>
+  @path_type_AS <<0x02>>
+  @path_type_AS_sequence <<0x02>>
+  @path_type_next_hop <<0x03>>
+  @path_attributes_origin <<0x0100::bytes(2)>>
+  @path_AS4_segments <<0x01>>
+
+  def pack_path_origin_igp() do
+    @path_flags <>
+      @path_type_origin <>
+      @path_attributes_origin
+  end
+
+  # NB AS will be *either* 4 or 2 byte AS4 or plain AS
+  # depending on announced capability, "Support for 4-octet AS numbers"
+  def pack_AS_path(as) when byte_size(as) == 2, do: pack_AS_path(<<0::16>> <> as)
+
+  def pack_AS_path(as) when byte_size(as) == 4 do
+    @path_flags <>
+      @path_type_AS <>
+      <<byte_size(as) + 2::byte()>> <>
+      @path_type_AS_sequence <>
+      @path_AS4_segments <>
+      as
+  end
+
+  def pack_path_next_hop(ip) do
+    @path_flags <>
+      @path_type_next_hop <>
+      <<byte_size(ip)::byte()>> <>
+      ip
+  end
+
+  def wrapped_path_attributes(as, next_hop) do
+    attributes =
+      pack_path_origin_igp() <>
+        pack_AS_path(as) <>
+        pack_path_next_hop(next_hop)
+
+    len = byte_size(attributes)
+    <<len::bytes(2)>> <> attributes
+  end
+
+  @doc """
+  NLRI (network layer reachability information) describes where the prior
+  path attributes can be reached - in short how to get to the path attributes
+  described in the preceding fields.
+  """
+  def pack_nlri(length, prefix), do: <<length::byte()>> <> prefix
+
+  def pack_update(
+        as,
+        next_hop,
+        prefix,
+        length,
+        withdrawn_routes = [],
+        hold_time \\ @bgp_hold_time
+      ) do
+    wrap(
+      @msg_update <>
+        pack_withdrawn_routes(withdrawn_routes) <>
+        wrapped_path_attributes(as, next_hop) <>
+        pack_nlri(length, prefix)
+    )
+  end
+
   # helpers
+  def string_to_ipv4_tuple!(ip) do
+    {:ok, ip} = ip |> String.to_charlist() |> :inet.parse_ipv4strict_address()
+    ip
+  end
+
+  def ipv4_tuple_to_binary!({a, b, c, d}), do: <<a, b, c, d>>
+
   def pretty(bin) when is_binary(bin), do: bin |> Base.encode16(case: :lower)
 end

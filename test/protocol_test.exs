@@ -21,23 +21,49 @@ defmodule ProtocolTest do
   @expired <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0015_0304_00::bytes(21)>>
 
   test "keepalive" do
-    assert [bgp_keepalive: nil] = parse(@keepalive)
+    assert [bgp_keepalive: nil] = unpack(@keepalive)
   end
 
   test "notifications" do
-    assert [bgp_shutdown: :cease] = parse(@shutdown)
-    assert [bgp_shutdown: :expired] = parse(@expired)
+    assert [bgp_shutdown: :cease] = unpack(@shutdown)
+    assert [bgp_shutdown: :expired] = unpack(@expired)
   end
 
   test "open" do
-    assert [bgp_open: _] = parse(@open)
+    assert [bgp_open: _] = unpack(@open)
   end
 
   test "message ordering is preserved" do
-    assert [bgp_open: _, bgp_keepalive: nil] = parse(@stacked)
+    assert [bgp_open: _, bgp_keepalive: nil] = unpack(@stacked)
   end
 
   test "update" do
-    assert [bgp_update: _] = parse(@update)
+    assert [bgp_update: _] = unpack(@update)
+  end
+
+  test "pack path origin (IGP)" do
+    assert <<0x4001_0100::bytes(4)>> = pack_path_origin_igp()
+  end
+
+  test "pack AS path" do
+    assert <<0x40020602010000FDE8::bytes(9)>> = pack_AS_path(<<0xFDE8::bytes(2)>>)
+  end
+
+  test "pack next hop" do
+    assert <<0x40_0304_0A50_4581::bytes(7)>> = pack_path_next_hop(<<0x0A504581::bytes(4)>>)
+  end
+
+  test "pack NLRI" do
+    assert <<0x20_934B_C214::bytes(5)>> = pack_nlri(32, <<0x934BC214::bytes(4)>>)
+  end
+
+  test "wrapped path attributes have valid header" do
+    assert <<0x0014::bytes(2), rest::binary>> = wrapped_path_attributes(<<0::16>>, <<0::32>>)
+  end
+
+  test "update message is exact match" do
+    assert <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002000000144001010040020602010000FDE84003040A50458120934BC214::bytes(
+               48
+             )>> = pack_update(<<0xFDE8::16>>, <<0x0A504581::32>>, <<0x934BC214::32>>, 32, [])
   end
 end
