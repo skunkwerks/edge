@@ -41,8 +41,10 @@ defmodule Edge do
   # 0xfe00
   @local_as <<65000::bytes(2)>>
   # 0xfde8
-  @upstream_as <<65530::bytes(2)>>
-  @upstream_ip <<10, 80, 69, 128>>
+  # @upstream_as <<65530::bytes(2)>>
+  # @upstream_ip <<10, 80, 69, 128>>
+  @prefix_net <<147, 75, 194, 20>>
+  @prefix_len 32
   @bgp_hold_time <<0x005A::bytes(2)>>
 
   @doc """
