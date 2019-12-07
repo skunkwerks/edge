@@ -23,22 +23,23 @@ defmodule BGP4.Protocol do
   @msg_update <<0x02::byte()>>
   @msg_notification <<0x03::byte()>>
   @msg_keepalive <<0x04::byte()>>
-  @bgp_hold_time <<0x005A::bytes(2)>>
+  @hold_time <<0x005A::bytes(2)>>
   # # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
   @hold_timers_expired <<0x0400::bytes(2)>>
-  # # optional capabilities
+  # optional BGP capabilities announced via open
+  @cap_type <<0x02>>
   @cap_none <<0x00>>
-  # @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
-  # #  followed by AS
-  # @cap_4_octet_asn <<0x4104::bytes(2)>>
-  # @cap_graceful_restart <<0x4006_0000_0001_0100::bytes(8)>>
-  # @cap_no_route_refresh <<0x0200::bytes(2)>>
-  # @cap_no_enhanced_route_refresh <<0x4600::bytes(2)>>
-  # @cap_no_longlived_graceful_restart <<0x4700::bytes(2)>>
+  # muse be followed by AS4
+  @cap_4_octet_asn <<0x4104::bytes(2)>>
+  @cap_graceful_restart <<0x4006_0000_0001_0100::bytes(8)>>
+  @cap_no_route_refresh <<0x0200::bytes(2)>>
+  @cap_no_enhanced_route_refresh <<0x4600::bytes(2)>>
+  @cap_no_longlived_graceful_restart <<0x4700::bytes(2)>>
+  @cap_multi_proto_extn <<0x0104_0001_0001::bytes(6)>>
 
   def preamble(), do: @preamble
-  def hold_time(), do: @bgp_hold_time
+  def hold_time(), do: @hold_time
   def cap_none(), do: @cap_none
   # sample AS taken from private AS range
   # 10.80.69.129 aka z01
@@ -245,12 +246,30 @@ defmodule BGP4.Protocol do
     |> wrap()
   end
 
-  def pack_open(as, ip, hold_time, options \\ @bgp_hold_time) do
+  def pack_cap_defaults(<<_::16>> = as2) do
+    options =
+      @cap_multi_proto_extn <>
+        @cap_no_route_refresh <>
+        @cap_graceful_restart <>
+        @cap_no_enhanced_route_refresh <>
+        @cap_no_longlived_graceful_restart <>
+        @cap_4_octet_asn <>
+        as2
+
+    @cap_type <>
+      <<byte_size(options)::byte()>> <> options
+  end
+
+  def pack_open(as, ip, hold_time \\ @hold_time),
+    do: pack_open(as, ip, hold_time, pack_cap_defaults(as))
+
+  def pack_open(as, ip, hold_time, options) do
     (@msg_open <>
        @bgp_version <>
        as <>
        hold_time <>
        ip <>
+       <<byte_size(options)::byte()>> <>
        options)
     |> wrap()
   end
@@ -326,7 +345,7 @@ defmodule BGP4.Protocol do
         prefix,
         length,
         withdrawn_routes = [],
-        hold_time \\ @bgp_hold_time
+        hold_time \\ @hold_time
       ) do
     wrap(
       @msg_update <>
