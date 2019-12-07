@@ -59,8 +59,6 @@ defmodule Edge do
 
     peer = %BGP4.Peer{ip: ip, port: port, timeout: timeout}
     {:ok, pid} = Edge.Worker.start_link(peer)
-    # register it so that we can use it transparently from the console
-    Process.register(pid, __MODULE__)
   end
 
   def open(as \\ @local_as, hold \\ @bgp_hold_time, ip \\ @local_ip) do
@@ -85,7 +83,7 @@ defmodule Edge do
   end
 
   def receive() do
-    {:ok, messages} = Edge.Worker.recv(:edge, 0)
+    {:ok, messages} = Edge.Worker.recv(__MODULE__, 0)
     BGP4.Protocol.unpack(messages)
   end
 

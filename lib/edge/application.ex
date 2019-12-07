@@ -17,8 +17,13 @@ defmodule Edge.Application do
       (System.get_env("HOLD") || "90000")
       |> String.to_integer()
 
+    peer = %BGP4.Peer{ip: ip, port: port, timeout: timeout}
+
     children = [
-      {Edge.Worker, %BGP4.Peer{ip: ip, port: port, timeout: timeout}}
+      %{
+        id: Edge,
+        start: {Edge.Worker, :start_link, [peer]}
+      }
     ]
 
     opts = [strategy: :one_for_one, name: Edge.Supervisor]

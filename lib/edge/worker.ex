@@ -18,7 +18,7 @@ defmodule Edge.Worker do
   # generate(:bgp_open, as, hold_time, ip, options)
 
   def start_link(%BGP4.Peer{} = peer) do
-    Connection.start_link(__MODULE__, peer)
+    Connection.start_link(__MODULE__, peer, name: Edge)
   end
 
   @impl true
@@ -109,7 +109,7 @@ defmodule Edge.Worker do
 
   def child_spec(opts) do
     %{
-      id: __MODULE__,
+      id: Edge,
       start: {__MODULE__, :start_link, [opts]},
       type: :worker,
       restart: :permanent,
