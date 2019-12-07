@@ -46,6 +46,17 @@ defmodule Edge do
   @bgp_hold_time <<0x005A::bytes(2)>>
 
   @doc """
+  announces a route to peer
+  """
+  def announce(
+        as \\ @local_as,
+        next_hop \\ @local_ip,
+        prefix \\ @prefix_net,
+        len \\ @prefix_len
+      ),
+      do: update(as, next_hop, prefix, len)
+
+  @doc """
   Start a BGP4 peer and establish a reliable connection
 
   """
