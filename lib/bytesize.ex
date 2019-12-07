@@ -47,6 +47,10 @@ defmodule Bytesize do
     quote do: 200
   end
 
+  defmacro bytes(28) do
+    quote do: 224
+  end
+
   defmacro bytes(32) do
     quote do: 256
   end
