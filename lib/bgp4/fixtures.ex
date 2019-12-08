@@ -1,9 +1,6 @@
 defmodule BGP4.Fixtures do
   import Bytesize
 
-  # message fragments
-  def version(), do: <<0x04>>
-  def preamble(), do: <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF::bytes(16)>>
   def keepalive(), do: <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0013_04::bytes(19)>>
   def shutdown(), do: <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0015_0306_02::bytes(21)>>
   def open(), do: [open1(), open2()]

@@ -45,7 +45,7 @@ defmodule Edge do
   # @upstream_ip <<10, 80, 69, 128>>
   @prefix_net <<147, 75, 194, 20>>
   @prefix_len 32
-  @bgp_hold_time <<0x005A::bytes(2)>>
+  @hold_time <<0x005A::bytes(2)>>
 
   @doc """
   announces a route to peer
@@ -74,8 +74,8 @@ defmodule Edge do
     {:ok, pid} = Edge.Worker.start_link(peer)
   end
 
-  def open(as \\ @local_as, hold \\ @bgp_hold_time, ip \\ @local_ip) do
-    msg = BGP4.Protocol.pack_open(as, hold, ip)
+  def open(as \\ @local_as, ip \\ @local_ip, hold_time \\ @hold_time) do
+    msg = BGP4.Protocol.pack_open(as, ip, hold_time)
     Edge.Worker.send(__MODULE__, msg)
   end
 
@@ -84,13 +84,13 @@ defmodule Edge do
     Edge.Worker.send(__MODULE__, msg)
   end
 
-  def update(as, next_hop, prefix, length) do
+  def update(as, next_hop, prefix, length \\ 32) do
     msg = BGP4.Protocol.pack_update(as, next_hop, prefix, length, @withdrawn_routes)
 
-    msg =
-      <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002000000144001010040020602010000FDE84003040A50458120934BC214::bytes(
-          48
-        )>>
+    # msg =
+    #   <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003002000000144001010040020602010000FDE84003040A50458120934BC214::bytes(
+    #       48
+    #     )>>
 
     Edge.Worker.send(__MODULE__, msg)
   end

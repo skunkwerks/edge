@@ -1,6 +1,6 @@
 defmodule BGP4.Protocol do
   @moduledoc """
-  Elixir Parser, Generator, and Definitions for BGPv4 Protocol
+      Elixir Parser, Generator, and Definitions for BGPv4 Protocol
 
   See https://tools.ietf.org/html/rfc4271 for BGPv4
   and https://tools.ietf.org/html/rfc4760 for Multiprotocol Extensions
@@ -24,9 +24,10 @@ defmodule BGP4.Protocol do
   @msg_notification <<0x03::byte()>>
   @msg_keepalive <<0x04::byte()>>
   @hold_time <<0x005A::bytes(2)>>
-  # # notifications
+  # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
   @hold_timers_expired <<0x0400::bytes(2)>>
+  @open_message_error <<0x0207::bytes(2)>>
   # optional BGP capabilities announced via open
   @cap_type <<0x02>>
   @cap_none <<0x00>>
@@ -135,6 +136,7 @@ defmodule BGP4.Protocol do
 
   def unpack_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, :cease}
   def unpack_msg(@msg_notification <> @hold_timers_expired), do: {:bgp_shutdown, :expired}
+  def unpack_msg(@msg_notification <> @open_message_error), do: {:bgp_shutdown, :open}
 
   @doc """
   0                   1                   2                   3
@@ -263,7 +265,12 @@ defmodule BGP4.Protocol do
   def pack_open(as, ip, hold_time \\ @hold_time),
     do: pack_open(as, ip, hold_time, pack_cap_defaults(as))
 
-  def pack_open(as, ip, hold_time, options) do
+  def pack_open(as, ip, hold_time, options)
+      when byte_size(as) == 2 and
+             byte_size(ip) == 4 and
+             byte_size(hold_time) == 2 do
+    # parameter order on the wire is different to that in the function
+    # because it allows sensible defaults in function head to be used
     (@msg_open <>
        @bgp_version <>
        as <>
@@ -339,14 +346,7 @@ defmodule BGP4.Protocol do
   """
   def pack_nlri(length, prefix), do: <<length::byte()>> <> prefix
 
-  def pack_update(
-        as,
-        next_hop,
-        prefix,
-        length,
-        withdrawn_routes = [],
-        hold_time \\ @hold_time
-      ) do
+  def pack_update(as, next_hop, prefix, length \\ 32, withdrawn_routes \\ []) do
     wrap(
       @msg_update <>
         pack_withdrawn_routes(withdrawn_routes) <>

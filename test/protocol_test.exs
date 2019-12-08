@@ -5,6 +5,7 @@ defmodule ProtocolTest do
   import BGP4.Protocol
 
   # sample messages
+  @hold_time <<240::16>>
   @keepalive <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0013_04::bytes(19)>>
   @shutdown <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_0015_0306_02::bytes(21)>>
   @open <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_003F_0104_FFFA_005A_934B_2440_2202_0601_0400_0100_0102_0280_0002_0202_0002_0440_0240_7802_0641_0400_00FF_FA02_0247_00::bytes(
@@ -39,6 +40,11 @@ defmodule ProtocolTest do
 
   test "update" do
     assert [bgp_update: _] = unpack(@update)
+  end
+
+  test "pack open matches header" do
+    assert <<0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0104FDE800F0010203040100::bytes(30)>> =
+             pack_open(<<0xFDE8::16>>, <<1, 2, 3, 4>>, @hold_time, <<0>>)
   end
 
   test "pack path origin (IGP)" do

@@ -5,6 +5,7 @@ defmodule Edge.Worker do
   kernel routing information base - yet.
   """
 
+  require Logger
   import BGP4.Protocol
   use Connection
 
@@ -18,7 +19,7 @@ defmodule Edge.Worker do
   # generate(:bgp_open, as, hold_time, ip, options)
 
   def start_link(%BGP4.Peer{} = peer) do
-    Connection.start_link(__MODULE__, peer, name: Edge)
+    Connection.start_link(__MODULE__, peer)
   end
 
   @impl true
@@ -65,11 +66,11 @@ defmodule Edge.Worker do
         Connection.reply(from, :ok)
 
       {:error, :closed} ->
-        :error_logger.format("Connection closed~n", [])
+        Logger.warn("conn closed")
 
       {:error, reason} ->
         reason = :inet.format_error(reason)
-        :error_logger.format("Connection error: ~s~n", [reason])
+        Logger.error("conn failed #{inspect(reason)}")
     end
 
     {:connect, :reconnect, %{s | sock: nil}}
