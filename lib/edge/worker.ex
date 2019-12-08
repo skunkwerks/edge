@@ -6,7 +6,7 @@ defmodule Edge.Worker do
   """
 
   require Logger
-  import BGP4.Protocol
+  # import BGP4.Protocol
   use Connection
 
   @backoff_delay 5000
@@ -19,7 +19,7 @@ defmodule Edge.Worker do
   # generate(:bgp_open, as, hold_time, ip, options)
 
   def start_link(%BGP4.Peer{} = peer) do
-    Connection.start_link(__MODULE__, peer)
+    Connection.start_link(__MODULE__, peer, name: Edge)
   end
 
   @impl true

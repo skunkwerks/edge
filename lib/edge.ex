@@ -71,7 +71,7 @@ defmodule Edge do
       |> string_to_ipv4_tuple!()
 
     peer = %BGP4.Peer{ip: ip, port: port, timeout: timeout}
-    {:ok, pid} = Edge.Worker.start_link(peer)
+    {:ok, _pid} = Edge.Worker.start_link(peer)
   end
 
   def open(as \\ @local_as, ip \\ @local_ip, hold_time \\ @hold_time) do
