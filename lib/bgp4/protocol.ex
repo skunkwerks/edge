@@ -27,7 +27,8 @@ defmodule BGP4.Protocol do
   # notifications
   @cease_admin_shutdown <<0x0602::bytes(2)>>
   @hold_timers_expired <<0x0400::bytes(2)>>
-  @open_message_error <<0x0207::bytes(2)>>
+  @open_unsupported_cap <<0x0207::bytes(2)>>
+  @malformed_as_path <<0x030B::bytes(2)>>
   # optional BGP capabilities announced via open
   @cap_type <<0x02>>
   @cap_none <<0x00>>
@@ -136,7 +137,8 @@ defmodule BGP4.Protocol do
 
   def unpack_msg(@msg_notification <> @cease_admin_shutdown), do: {:bgp_shutdown, :cease}
   def unpack_msg(@msg_notification <> @hold_timers_expired), do: {:bgp_shutdown, :expired}
-  def unpack_msg(@msg_notification <> @open_message_error), do: {:bgp_shutdown, :open}
+  def unpack_msg(@msg_notification <> @open_unsupported_cap), do: {:bgp_shutdown, :open}
+  def unpack_msg(@msg_notification <> @malformed_as_path), do: {:bgp_shutdown, :bad_path}
 
   @doc """
   0                   1                   2                   3

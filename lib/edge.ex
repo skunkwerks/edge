@@ -76,6 +76,7 @@ defmodule Edge do
 
   def open(as \\ @local_as, ip \\ @local_ip, hold_time \\ @hold_time) do
     msg = BGP4.Protocol.pack_open(as, ip, hold_time)
+    msg = <<0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_001D_0104_FDE8_0A50_4581_00F0_00::232>>
     Edge.Worker.send(__MODULE__, msg)
   end
 
